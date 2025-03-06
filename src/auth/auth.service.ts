@@ -3,17 +3,20 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User } from 'src/users/schemas/user.schema';
 import { SignUpDto } from './dto/signup.dto';
-import * as bcrypt from 'bcrypt';
 import { SignInDto } from './dto/signin.dto';
+import * as bcrypt from 'bcrypt';
+import { JwtService } from '@nestjs/jwt';
 
-interface ApiResponse {
-    status: boolean;
-    message: string;
+interface UserTokens{
+    accessToken: string
 }
 
 @Injectable()
 export class AuthService {
-    constructor(@InjectModel(User.name) private UserModel: Model<User>) {}
+    constructor(
+        @InjectModel(User.name) private UserModel: Model<User>,
+        private jwtService: JwtService
+    ) {}
 
     async signup(signUpData: SignUpDto): Promise<User>{
         const {email, username, password, full_name} = signUpData;
@@ -48,7 +51,7 @@ export class AuthService {
         return createdUser; 
     }
 
-    async signin(signInData: SignInDto): Promise<ApiResponse>{
+    async signin(signInData: SignInDto): Promise<UserTokens>{
         const {email, username, password} = signInData;
 
         // Finding user for the provided mail & username
@@ -67,10 +70,16 @@ export class AuthService {
             throw new UnauthorizedException('Invalid Credentials');
         }
 
-        return{
-            status: true,
-            message: 'Success'
-        }
+        // Generate JWT tokens
+        return this.generateUserTokens(user._id);
+    }
+
+    async generateUserTokens(userId: Object): Promise<UserTokens>{
+       const accessToken = this.jwtService.sign({userId}, {expiresIn: '1d'});
+
+       return {
+        accessToken
+       }
     }
 
 

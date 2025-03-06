@@ -4,9 +4,8 @@ import { SignUpDto } from './dto/signup.dto';
 import { SignInDto } from './dto/signin.dto';
 import { User } from 'src/users/schemas/user.schema';
 
-interface ApiResponse {
-  status: boolean;
-  message: string;
+interface UserTokens{
+  accessToken: string
 }
 
 @Controller('auth')
@@ -19,7 +18,7 @@ export class AuthController {
   }
 
   @Post('signin')
-  async signIn(@Body() singInData: SignInDto): Promise<ApiResponse> {
+  async signIn(@Body() singInData: SignInDto): Promise<UserTokens> {
     return this.authService.signin(singInData);
   }
 }
