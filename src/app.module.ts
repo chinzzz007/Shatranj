@@ -6,6 +6,9 @@ import databaseConfig, { CONFIG_DATABASE } from './config/database.config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { JwtModule } from '@nestjs/jwt';
+import { CONFIG_JWT_SECRET } from './config/jwt.config';
+
 
 @Module({
   imports: [
@@ -20,6 +23,15 @@ import { AuthModule } from './auth/auth.module';
         return {
           uri: configService.get(CONFIG_DATABASE).uri,
         };
+      },
+      inject: [ConfigService],
+    }),
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) =>{
+        return{
+          secret: configService.get(CONFIG_JWT_SECRET),
+        }
       },
       inject: [ConfigService],
     }),
