@@ -7,8 +7,8 @@ import { Connection } from 'mongoose';
 export class AppService {
   constructor(@InjectConnection() private readonly connection: Connection) {}
 
-  getHello(): string {
-    console.log(`Connected to MongoDb : ${this.connection.name}`) 
-    return 'Hello World!';
-  }
+  // getHello(): string {
+  //   console.log(`Connected to MongoDb : ${this.connection.name}`) 
+  //   return 'Hello World!';
+  // }
 }
