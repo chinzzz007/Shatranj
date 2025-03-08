@@ -92,8 +92,11 @@ export class AuthService {
 
         // storing refresh token in refreshtokens collection
         await this.RefreshTokenModel.updateOne (
-            {user_id},
-            {$set: {refresh_token, expiry_date}},
+            {user_id: user_id},
+            {$set: {
+                refresh_token: refresh_token, 
+                expiry_date: expiry_date
+            }},
             {upsert: true}
         );
     }
