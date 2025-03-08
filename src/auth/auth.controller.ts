@@ -3,10 +3,8 @@ import { AuthService } from './auth.service';
 import { SignUpDto } from './dto/signup.dto';
 import { SignInDto } from './dto/signin.dto';
 import { User } from 'src/users/schemas/user.schema';
-
-interface UserTokens{
-  accessToken: string
-}
+import { RefreshTokenDto } from './dto/refreshToken.dto';
+import {UserTokens} from './interfaces/user-tokens.interface'
 
 @Controller('auth')
 export class AuthController {
@@ -20,5 +18,10 @@ export class AuthController {
   @Post('signin')
   async signIn(@Body() singInData: SignInDto): Promise<UserTokens> {
     return this.authService.signin(singInData);
+  }
+
+  @Post('refresh')
+  async refreshTokens(@Body() refreshTokenDto: RefreshTokenDto){
+    return this.authService.refreshTokens(refreshTokenDto.refresh_token);
   }
 }

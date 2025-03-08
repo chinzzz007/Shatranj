@@ -1,20 +1,21 @@
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import mongoose, { Model, Mongoose } from 'mongoose';
 import { User } from 'src/users/schemas/user.schema';
 import { SignUpDto } from './dto/signup.dto';
 import { SignInDto } from './dto/signin.dto';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
+import {v4 as uuidv4} from 'uuid';
+import { RefreshToken } from './schemas/refresh-token.schema';  
+import {UserTokens} from './interfaces/user-tokens.interface'
 
-interface UserTokens{
-    accessToken: string
-}
 
 @Injectable()
 export class AuthService {
     constructor(
         @InjectModel(User.name) private UserModel: Model<User>,
+        @InjectModel(RefreshToken.name) private RefreshTokenModel: Model<RefreshToken>,
         private jwtService: JwtService
     ) {}
 
@@ -74,13 +75,39 @@ export class AuthService {
         return this.generateUserTokens(user._id);
     }
 
-    async generateUserTokens(userId: Object): Promise<UserTokens>{
-       const accessToken = this.jwtService.sign({userId}, {expiresIn: '1d'});
-
-       return {
-        accessToken
-       }
+    async generateUserTokens(user_id: mongoose.Types.ObjectId): Promise<UserTokens>{
+        // generating accessToken 
+        const access_token = this.jwtService.sign({user_id}, {expiresIn: '3d'});
+        const refresh_token = uuidv4();
+        await this.storeRefreshToken(refresh_token, user_id);
+        return {
+            access_token,
+            refresh_token
+        }
     }
 
+    async storeRefreshToken(refresh_token: string, user_id: Object){
+        const expiry_date = new Date();
+        expiry_date.setDate(expiry_date.getDate() + 7);
 
+        // storing refresh token in refreshtokens collection
+        await this.RefreshTokenModel.updateOne (
+            {user_id},
+            {$set: {refresh_token, expiry_date}},
+            {upsert: true}
+        );
+    }
+
+    async refreshTokens(token: string){
+        const stored_token = await this.RefreshTokenModel.findOne({
+            refresh_token: token,
+            expiry_date: {$gte: new Date()}
+        })
+
+        if(!stored_token){
+            throw new UnauthorizedException('Please SignIn again');
+        }
+
+        return this.generateUserTokens(stored_token.user_id);
+    }
 }
