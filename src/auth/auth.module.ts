@@ -7,6 +7,9 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import jwtConfig, { CONFIG_JWT_SECRET } from 'src/config/jwt.config';
 import { RefreshToken, RefreshTokenSchema } from './schemas/refresh-token.schema';
+import { MailerModule } from '@nestjs-modules/mailer';
+import * as dotenv from 'dotenv';
+dotenv.config();
 
 @Module({
   imports: [
@@ -20,6 +23,18 @@ import { RefreshToken, RefreshTokenSchema } from './schemas/refresh-token.schema
       },
       inject: [ConfigService],
     }),
+    MailerModule.forRoot({
+      transport:{
+        service: 'gmail',
+        host: process.env.EMAIL_HOST,
+        port: 465,
+        secure: false,
+        auth:{
+          user: process.env.GMAIL_EMAIL_USERNAME,
+          pass: process.env.GMAIL_EMAIL_PASSWORD 
+        }
+      }
+    })
   ],
   controllers: [AuthController],
   providers: [AuthService],
