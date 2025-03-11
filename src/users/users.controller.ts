@@ -1,14 +1,15 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { CreateUserDto } from './dto/create-user.dto';
+import { AuthGuard } from 'src/guards/auth.guard';
+import { ChangePasswordDto } from './dto/changePassword.dto';
 
+@UseGuards(AuthGuard)
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Post()
-  async createUser(@Body() createUserDto: CreateUserDto){
-    console.log("creating a user1");
-    return this.usersService.createUser(createUserDto);
+  @Post('change_password')
+  async changePassword(@Body() changePasswordData: ChangePasswordDto, @Req() req){
+    return this.usersService.changePassword(changePasswordData, req);
   }
 }

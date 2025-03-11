@@ -16,6 +16,12 @@ export class User{
 
     @Prop({required: true})
     full_name: string
+
+    @Prop()
+    reset_otp: string
+
+    @Prop()
+    otp_expiry: Date
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
