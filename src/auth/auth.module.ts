@@ -6,14 +6,17 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import jwtConfig, { CONFIG_JWT_SECRET } from 'src/config/jwt.config';
-import { RefreshToken, RefreshTokenSchema } from './schemas/refresh-token.schema';
 import { MailerModule } from '@nestjs-modules/mailer';
 import * as dotenv from 'dotenv';
+import { OtpRecords, OtpRecordsSchema } from './schemas/otp-records.schema';
 dotenv.config();
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{name: User.name, schema: UserSchema}, {name: RefreshToken.name, schema: RefreshTokenSchema}]),
+    MongooseModule.forFeature([
+      {name: User.name, schema: UserSchema}, 
+      {name: OtpRecords.name, schema: OtpRecordsSchema},
+    ]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) =>{

@@ -16,12 +16,12 @@ export class User{
 
     @Prop({required: true})
     full_name: string
+    
+    @Prop({index: true})
+    refresh_token: string
 
     @Prop()
-    reset_otp: string
-
-    @Prop()
-    otp_expiry: Date
+    expiry_date: Date
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
