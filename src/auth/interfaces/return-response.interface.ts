@@ -4,4 +4,5 @@ export interface ReturnResponse{
     message: string,
     error?: string,
     short_lived_token?: string,
+    data?: Record<string, any>
 }

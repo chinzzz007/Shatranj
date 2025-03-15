@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Req, UnauthorizedException, UnsupportedMediaTypeException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, Render, Req, Res, UnauthorizedException} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import mongoose, { Model, Mongoose } from 'mongoose';
 import { User, UserDocument } from 'src/users/schemas/user.schema';
@@ -6,58 +6,75 @@ import { SignUpDto } from './dto/signup.dto';
 import { SignInDto } from './dto/signin.dto';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
-import {v4 as uuidv4} from 'uuid';
-import { RefreshToken } from './schemas/refresh-token.schema';  
-import {UserTokens} from './interfaces/user-tokens.interface'
+import {v4 as uuidv4} from 'uuid'; 
 import { ForgotPasswordDto } from './dto/forgotPassword.dto';
-import { MailerModule, MailerService } from '@nestjs-modules/mailer';
+import { MailerService } from '@nestjs-modules/mailer';
 import { ReturnResponse } from './interfaces/return-response.interface';
 import { OtpFromClientDto } from './dto/otpFromClient.dto';
 import { ResetPasswordDto } from './dto/resetPassword.dto';
+import { OtpRecords } from './schemas/otp-records.schema';
 
 @Injectable()
 export class AuthService {
     constructor(
         @InjectModel(User.name) private UserModel: Model<User>,
-        @InjectModel(RefreshToken.name) private RefreshTokenModel: Model<RefreshToken>,
+        // @InjectModel(RefreshToken.name) private RefreshTokenModel: Model<RefreshToken>,
+        @InjectModel(OtpRecords.name) private OtpRecordsModel: Model<OtpRecords>,
         private jwtService: JwtService,
         private readonly mailService: MailerService
     ) {}
 
-    async signup(signUpData: SignUpDto): Promise<User>{
-        const {email, username, password, full_name} = signUpData;
-        
-        // Checking for existence of mail in the database
-        const emailInUse = await this.UserModel.findOne({
-            email: email,
-        })
-        if(emailInUse){
-            throw new BadRequestException('Email Already in use!')
+    async signup(signUpData: SignUpDto): Promise<ReturnResponse>{
+        try{
+            const {email, username, password, full_name} = signUpData;
+            
+            // Checking for existence of mail in the database
+            const emailInUse = await this.UserModel.findOne({
+                email: email,
+            })
+            if(emailInUse){
+                throw new BadRequestException({
+                    success: false,
+                    status_code: 400, 
+                    message: "User already registered",
+                })
+            }
+
+            // Checking for the existence of username in the database
+            const usernameInUse = await this.UserModel.findOne({
+                username: username,
+            })
+            if(usernameInUse){
+                throw new BadRequestException({
+                    success: false,
+                    status_code: 400, 
+                    message: "Username already taken",
+                })
+            }
+
+            // Hashing the password
+            const hashedPassword = await bcrypt.hash(password, 10);
+
+            // Creating User document and saving in mongodb
+            const createdUser = await this.UserModel.create({
+                email: email,
+                username: username,
+                password: hashedPassword, 
+                full_name: full_name
+            })
+            
+            return {
+                success: true,
+                status_code: 201, 
+                message: "User created",
+            }
         }
-
-        // Checking for the existence of username in the database
-        const usernameInUse = await this.UserModel.findOne({
-            username: username,
-        })
-        if(usernameInUse){
-            throw new BadRequestException('Username Already in use!')
+        catch(error){
+            throw error
         }
-
-        // Hashing the password
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        // Creating User document and saving in mongodb
-        const createdUser = await this.UserModel.create({
-            email: email,
-            username: username,
-            password: hashedPassword, 
-            full_name: full_name
-        })
-        
-        return createdUser; 
     }
 
-    async signin(signInData: SignInDto): Promise<UserTokens>{
+    async signin(signInData: SignInDto): Promise<ReturnResponse>{
         const {email, username, password} = signInData;
 
         // Finding user for the provided mail & username
@@ -67,27 +84,40 @@ export class AuthService {
         })
 
         if(!user) {
-            throw new UnauthorizedException('Invalid Credentials!')
+            throw new BadRequestException({
+                success: false,
+                status_code: 400, 
+                message: "Invalid Credentials",
+            })
         }
 
         // Comparison of password
         const passwordMatch = await bcrypt.compare(password, user.password);
         if(!passwordMatch){
-            throw new UnauthorizedException('Invalid Credentials');
+            throw new BadRequestException({
+                success: false,
+                status_code: 400,
+                message: "Wrong password"    
+            })
         }
 
         // Generate JWT tokens
         return this.generateUserTokens(user._id);
     }
 
-    async generateUserTokens(user_id: mongoose.Types.ObjectId): Promise<UserTokens>{
+    async generateUserTokens(user_id: mongoose.Types.ObjectId): Promise<ReturnResponse>{
         // generating accessToken 
         const access_token = this.jwtService.sign({user_id}, {expiresIn: '3d'});
         const refresh_token = uuidv4();
         await this.storeRefreshToken(refresh_token, user_id);
         return {
-            access_token,
-            refresh_token
+            success: true,
+            status_code: 201,
+            message: "User signed in successfully",
+            data: {
+                access_token: access_token,
+                refresh_token: refresh_token
+            }
         }
     }
 
@@ -95,9 +125,9 @@ export class AuthService {
         const expiry_date = new Date();
         expiry_date.setDate(expiry_date.getDate() + 7);
 
-        // storing refresh token in refreshtokens collection
-        await this.RefreshTokenModel.updateOne (
-            {user_id: user_id},
+        // storing refresh token in db
+        await this.UserModel.updateOne(
+            {_id: user_id},
             {$set: {
                 refresh_token: refresh_token, 
                 expiry_date: expiry_date
@@ -106,19 +136,23 @@ export class AuthService {
         );
     }
 
-    async refreshTokens(token: string){
-        const stored_token = await this.RefreshTokenModel.findOne({
-            refresh_token: token,
-            expiry_date: {$gte: new Date()}
+    async refreshTokens(refresh_token: string): Promise<ReturnResponse>{
+        const stored_token = await this.UserModel.findOne({
+            refresh_token: refresh_token,
         })
 
         if(!stored_token){
-            throw new UnauthorizedException('Please SignIn again');
+            throw new UnauthorizedException({
+                success: false,
+                status_code: 401,
+                message: "Please sign in again"
+            });
         }
 
-        return this.generateUserTokens(stored_token.user_id);
+        return this.generateUserTokens(stored_token._id);
     }
 
+    // When the user want to reset the password they forgot 
     async forgotPasswordOtpToClient(forgotPasswordProvidedData : ForgotPasswordDto):Promise<ReturnResponse>{ 
         const {email} = forgotPasswordProvidedData;
 
@@ -128,10 +162,14 @@ export class AuthService {
                 email: email
             })
             if(!existingUser){
-                throw new UnauthorizedException('User doesnt exist');
+                throw new BadRequestException({
+                    success: false,
+                    status_code: 400,
+                    message: "User doesn't exist"
+                })
             }
 
-            // If email is present generating and storing an otp in user docs 
+            // If email is present generating and storing an otp in database
             const resetOtp = await this.generateAndStoreOtp(existingUser);
 
             // Now sending an email to the registered email
@@ -144,27 +182,29 @@ export class AuthService {
             }
         }
         catch(error){
-            return{
-                success: false,
-                status_code: 500,
-                message: 'Unable to send email',
-                error: error.message
-            }
+            throw error
         }
     }
 
+    // Step while generating otp for users
     async generateAndStoreOtp(existingUser: UserDocument): Promise<string>{
-        // creating a 6-digit otp and hashing it to store it in db
-        const resetOtp = Math.floor(100000 + Math.random() * 900000).toString();
-        const hashedOtp = await bcrypt.hash(resetOtp, 10);
+        let resetOtp;
+        let otpExists;
+        
+        // checking whether generated otp is unique or not
+        do{
+            resetOtp = Math.floor(100000 + Math.random() * 900000).toString();
+            otpExists = await this.OtpRecordsModel.exists({otp: resetOtp});
+        } while (otpExists);
 
         // creating expiry time for otp - 5 minutes
         const expiry_time = new Date(Date.now() + 5*60*1000);
         
-        existingUser.reset_otp = hashedOtp;
-        existingUser.otp_expiry = expiry_time;
-
-        await existingUser.save();
+        await this.OtpRecordsModel.updateOne(
+            {email: existingUser.email},
+            {$set: {otp: resetOtp, expiry_time: expiry_time}},
+            {upsert: true}
+        )
 
         return resetOtp;
     }
@@ -198,89 +238,118 @@ export class AuthService {
         return this.jwtService.sign({user_id: user_id}, {expiresIn: '15m'});
     }
 
+    // Validating the otp and setting up uuid for password reset
     async forgotPasswordOtpFromClient(otpFromClientData: OtpFromClientDto): Promise<ReturnResponse>{
         try{
             const {resetOtp, email} = otpFromClientData;
             
-            const existingUser = await this.UserModel.findOne({
+            const existingOtpClient = await this.OtpRecordsModel.findOne({
                 email: email
             })
-            if(!existingUser){
-                throw new UnauthorizedException('User doesnt exist');
-            }
 
-            if(!existingUser.otp_expiry || !existingUser.reset_otp){
-                throw new Error('Invalid Otp');
+            // if user hasn't requested for any otp
+            if(!existingOtpClient){
+                throw new BadRequestException({
+                    success: false, 
+                    status_code: 400,
+                    message: "Haven't requested for any otp"
+                });
             }
 
             // If provided otp is expired
-            if(existingUser.otp_expiry < new Date()){
-                throw new Error('Otp Expired');
+            if(existingOtpClient.expiry_time < new Date()){
+                throw new BadRequestException({
+                    success: false,
+                    status_code: 400,
+                    message: "Otp Expired, Please request for new one!"
+                });
+            } 
+
+            // if provided otp doesnot match the db otp
+            if(resetOtp !== existingOtpClient.otp){
+                throw new BadRequestException({
+                    success: false,
+                    status_code: 400,
+                    message: "Invalid Otp"
+                });
             }
 
-            // Comparing the hashed otps
-            const isMatch = await bcrypt.compare(resetOtp, existingUser.reset_otp);
-
-            if(!isMatch){
-                throw new Error('Invalid Otp!');
-            }
-
-            await this.UserModel.updateOne(
-                {email: email},
-                {$unset: {reset_otp: "", otp_expiry: ""}}
-            )
-
-            const shortJWT = await this.setPasswordToken(existingUser._id);
+            // generating and storing a uuid for further password changing
+            existingOtpClient.expiry_time = new Date();
+            existingOtpClient.temp_uuid = uuidv4();
+            existingOtpClient.uuid_expiry = new Date(Date.now() + 15*60*1000);
+            await existingOtpClient.save();
             
             return{
                 success: true,
-                status_code: 200,
+                status_code: 201,
                 message: 'You can change your password!',
-                short_lived_token: shortJWT
+                data: {
+                    temp_uuid: existingOtpClient.temp_uuid
+                }
             }
         }
         catch(error){
-            return{
-                success: false,
-                status_code: 500,
-                message: 'Unable to verify otp',
-                error: error.message
-            }
+            throw error;
         }
     }
 
-    async forgotPasswordResetPassword(resetPasswordData: ResetPasswordDto, req){
-        const {reset_password, confirm_reset_password} = resetPasswordData;
-        const user_id = req.user_id;
-        
-        if(reset_password != confirm_reset_password){
-            throw new Error("Passwords aren't matching!");
-        }
-
-        const existingUser = await this.UserModel.findOne({
-            _id: user_id
-        })
-        if(!existingUser){
-            throw new UnauthorizedException('User doesnt exist');
-        }
-
-        const hashedPassword = bcrypt.hash(reset_password, 10);
-        const updatedPasswordUser = await this.UserModel.updateOne(
-            {_id: user_id},
-            {
-                $set:{
-                    password: hashedPassword,
-                }
+    // Setting up a new password
+    async forgotPasswordResetPassword(resetPasswordData: ResetPasswordDto, password_uuid: string): Promise<ReturnResponse>{
+        try{
+            const {reset_password, confirm_reset_password} = resetPasswordData;
+            
+            if(reset_password != confirm_reset_password){
+                throw new BadRequestException({
+                    success: false,
+                    status_code: 400,
+                    message: "Passwords aren't matching"
+                });
             }
-        )
 
-        if(updatedPasswordUser){
+            const existingOtpRecord = await this.OtpRecordsModel.findOne({
+                temp_uuid: password_uuid
+            })
+            if(!existingOtpRecord){
+                throw new UnauthorizedException({
+                    success: false,
+                    status_code: 401,
+                    message: "No otp record found"
+                });
+            }
+
+            if(existingOtpRecord.uuid_expiry < new Date()){
+                throw new BadRequestException({
+                    success: false,
+                    status_code: 400,
+                    message: "Password reseting time expired"
+                })
+            }
+            Logger.log("working3");
+            
+            await existingOtpRecord.deleteOne();
+            Logger.log("working1");
+
+            const hashedPassword = await bcrypt.hash(reset_password, 10);
+            await this.UserModel.updateOne(
+                {email: existingOtpRecord.email},
+                {
+                    $set:{
+                        password: hashedPassword,
+                    }
+                }
+            )
+            Logger.log("working2");
+
+
             return{
                 success: true,
-                status_code: 200,
+                status_code: 201,
                 message: 'Password Changed Successfully'
             }
         }
-
+        catch(error){
+            throw error;
+        }
     }
 }
