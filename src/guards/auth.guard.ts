@@ -9,7 +9,7 @@ export class AuthGuard implements CanActivate {
     constructor(private jwtService: JwtService) {}
 
     canActivate(context: ExecutionContext): boolean | Promise<boolean> | Observable<boolean> {
-        const request = context.switchToHttp().getRequest();
+        const request = context.switchToHttp().getRequest<Request>();
         const token = this.extractTokenFromHeader(request);
 
         if(!token){
@@ -18,15 +18,19 @@ export class AuthGuard implements CanActivate {
 
         try{
             const payload = this.jwtService.verify(token);
-            request.user_id = payload.user_id;
+            request['user_id'] = payload.user_id;
+            return true;
         }catch(e){
             Logger.error(e.message);
             throw new UnauthorizedException('Invalid Token');
         }
-        return true;
     }
 
     private extractTokenFromHeader(request: Request): string | undefined{
-        return request.headers.authorization?.split(' ')[1];
+        const authHeader = request.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return undefined;
+        }
+        return authHeader.split(' ')[1];
     }
 }

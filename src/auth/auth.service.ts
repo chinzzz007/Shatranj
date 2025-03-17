@@ -18,7 +18,6 @@ import { OtpRecords } from './schemas/otp-records.schema';
 export class AuthService {
     constructor(
         @InjectModel(User.name) private UserModel: Model<User>,
-        // @InjectModel(RefreshToken.name) private RefreshTokenModel: Model<RefreshToken>,
         @InjectModel(OtpRecords.name) private OtpRecordsModel: Model<OtpRecords>,
         private jwtService: JwtService,
         private readonly mailService: MailerService
@@ -339,8 +338,6 @@ export class AuthService {
                     }
                 }
             )
-            Logger.log("working2");
-
 
             return{
                 success: true,
