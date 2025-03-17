@@ -2,7 +2,6 @@ import { BadRequestException, Body, Controller, Get, HttpCode, Post, Req, Res, U
 import { AuthService } from './auth.service';
 import { SignUpDto } from './dto/signup.dto';
 import { SignInDto } from './dto/signin.dto';
-import { RefreshTokenDto } from './dto/refreshToken.dto';
 import { ForgotPasswordDto } from './dto/forgotPassword.dto';
 import { ReturnResponse } from './interfaces/return-response.interface';
 import { OtpFromClientDto } from './dto/otpFromClient.dto';

@@ -9,6 +9,9 @@ import jwtConfig, { CONFIG_JWT_SECRET } from 'src/config/jwt.config';
 import { MailerModule } from '@nestjs-modules/mailer';
 import * as dotenv from 'dotenv';
 import { OtpRecords, OtpRecordsSchema } from './schemas/otp-records.schema';
+import { ScheduleModule } from '@nestjs/schedule';
+import { AuthCronsService } from './auth-crons/auth-crons.service';
+
 dotenv.config();
 
 @Module({
@@ -37,9 +40,10 @@ dotenv.config();
           pass: process.env.GMAIL_EMAIL_PASSWORD 
         }
       }
-    })
+    }),
+    ScheduleModule.forRoot(),
   ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [AuthService, AuthCronsService],
 })
 export class AuthModule {}

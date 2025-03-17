@@ -8,7 +8,7 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtModule } from '@nestjs/jwt';
 import { CONFIG_JWT_SECRET } from './config/jwt.config';
-
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -35,6 +35,7 @@ import { CONFIG_JWT_SECRET } from './config/jwt.config';
       },
       inject: [ConfigService],
     }),
+    ScheduleModule.forRoot(),
     UsersModule,
     AuthModule
   ],
