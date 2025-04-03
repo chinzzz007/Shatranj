@@ -13,7 +13,7 @@ export class AuthGuard implements CanActivate {
         const token = this.extractTokenFromHeader(request);
 
         if(!token){
-            throw new UnauthorizedException('Invalid Token');
+            throw new UnauthorizedException('Missing Auth Token');
         }
 
         try{
@@ -27,10 +27,10 @@ export class AuthGuard implements CanActivate {
     }
 
     private extractTokenFromHeader(request: Request): string | undefined{
-        const authHeader = request.headers.authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return undefined;
+        const access_token = request.cookies['access_token'];
+        if(!access_token){
+            return undefined
         }
-        return authHeader.split(' ')[1];
+        return access_token;
     }
 }

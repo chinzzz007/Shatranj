@@ -148,6 +148,14 @@ export class AuthService {
             });
         }
 
+        if(new Date() > stored_token.expiry_date){
+            throw new UnauthorizedException({
+                success: false,
+                status_code: 401,
+                message: "Session Expired signin again"
+            })
+        }
+
         return this.generateUserTokens(stored_token._id);
     }
 
