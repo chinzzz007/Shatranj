@@ -9,7 +9,8 @@ import { AuthModule } from './auth/auth.module';
 import { JwtModule } from '@nestjs/jwt';
 import { CONFIG_JWT_SECRET } from './config/jwt.config';
 import { ScheduleModule } from '@nestjs/schedule';
-import { Gateway } from './gateways/websocket.gateway';
+import { ConnectionGateway } from './gateways/connection.gateway';
+import { ConnectionGatewayModule } from './gateways/connection-gateway.module';
 
 
 @Module({
@@ -39,9 +40,10 @@ import { Gateway } from './gateways/websocket.gateway';
     }),
     ScheduleModule.forRoot(),
     UsersModule,
-    AuthModule
+    AuthModule,
+    ConnectionGatewayModule
   ],
   controllers: [AppController],
-  providers: [AppService, Gateway],
+  providers: [AppService],
 })
 export class AppModule {}

@@ -5,6 +5,7 @@ import { User, UserDocument } from './schemas/user.schema';
 import { ChangePasswordDto } from './dto/changePassword.dto';
 import * as bcrypt from 'bcrypt';
 import { ReturnResponse } from 'src/auth/interfaces/return-response.interface';
+import { Socket } from 'socket.io';
 
 @Injectable()
 export class UsersService {
@@ -49,5 +50,11 @@ export class UsersService {
         catch(error){
             throw error;
         }
+    }
+
+    respondToSocket(payload: string):String{
+        console.log(`Recieved Message : ${payload}`)
+        const msg = `You sent me this ${payload}`
+        return msg;
     }
 }

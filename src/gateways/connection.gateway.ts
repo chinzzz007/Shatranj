@@ -1,31 +1,30 @@
+import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { OnGatewayConnection, OnGatewayInit, WebSocketGateway, WebSocketServer } from "@nestjs/websockets";
 import { Server, Socket} from "socket.io";
 import { AuthWsMiddleware } from "src/middlewares/auth-ws.middleware";
-import { UsersService } from "src/users/users.service";
 
 
 @WebSocketGateway({ cors: { origin: '*' } })
-export class Gateway implements OnGatewayInit, OnGatewayConnection{
+@Injectable()
+export class ConnectionGateway implements OnGatewayInit, OnGatewayConnection{
     @WebSocketServer()
     server: Server
 
     constructor(
         private readonly configService: ConfigService,
         private readonly jwtService: JwtService,
-        private readonly userService: UsersService,
     ){}
 
     afterInit() {
-        console.log('WebSocket Gateway Initialized');
+        console.log('Websocket Connection Gateway Initialized');
     }
 
     async handleConnection(socket: Socket) {
         const middleware = AuthWsMiddleware(
             this.jwtService,
-            this.configService,
-            this.userService
+            this.configService
         );
 
         await middleware(socket, (error? : Error)=>{
