@@ -29,4 +29,10 @@ export class UsersController {
       message: "User signed out!"
     }
   }
+
+  @HttpCode(200)
+  @Get('hello_user')
+  async helloToUser(){
+    return {"message" : "hello to user"}
+  }
 }

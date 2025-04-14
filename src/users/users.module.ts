@@ -6,6 +6,7 @@ import { User, UserSchema } from './schemas/user.schema';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CONFIG_JWT_SECRET } from 'src/config/jwt.config';
+import { UserWebsocketGateway } from './user-websocket/user-websocket.gateway';
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { CONFIG_JWT_SECRET } from 'src/config/jwt.config';
     }),
   ],
   controllers: [UsersController],
-  providers: [UsersService],
+  providers: [UsersService, UserWebsocketGateway],
   exports: [UsersService]
 })
 export class UsersModule {}
